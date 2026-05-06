@@ -52,6 +52,8 @@ namespace PayFlow.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("PaymentId");
+
                     b.HasIndex("TenantId", "Currency");
 
                     b.ToTable("ledger_entries", (string)null);
@@ -75,13 +77,13 @@ namespace PayFlow.Infrastructure.Migrations
                         .HasColumnType("character varying(3)");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("Metadata")
                         .HasColumnType("jsonb");

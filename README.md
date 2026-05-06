@@ -73,6 +73,51 @@ Authorization: Bearer eyJ...
 
 JWTs expire after 15 minutes. Re-issue via `/v1/auth/token` using your API key.
 
+## Payments API
+
+All endpoints require:
+
+```text
+Authorization: Bearer <jwt>
+```
+
+### Create a payment
+
+POST `/v1/payments`
+
+Headers:
+
+```text
+Idempotency-Key: <merchant-generated-key>
+Authorization: Bearer <jwt>
+```
+
+Body:
+
+```json
+{
+  "amount": 100.00,
+  "currency": "USD",
+  "description": "Order #1234",
+  "metadata": "{\"orderId\": \"1234\"}"
+}
+```
+
+IMPORTANT: Generate the idempotency key BEFORE entering any retry loop.
+The same key replayed returns the same response without reprocessing.
+
+### Get a payment
+
+GET `/v1/payments/{id}`
+
+### List payments
+
+GET `/v1/payments?page=1&pageSize=20`
+
+### Get wallet balance
+
+GET `/v1/payments/wallet/{currency}`
+
 ## Solution Projects
 
 - `src/PayFlow.Api` - ASP.NET Core 10 Web API host, controllers, Swagger, JWT auth, health, and Prometheus metrics.

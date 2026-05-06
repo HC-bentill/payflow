@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,6 +6,7 @@ using PayFlow.Application.Health;
 using PayFlow.Application.Common;
 using PayFlow.Domain.Interfaces;
 using PayFlow.Infrastructure.Health;
+using PayFlow.Infrastructure.Messaging;
 using PayFlow.Infrastructure.Persistence;
 using PayFlow.Infrastructure.Persistence.Repositories;
 using PayFlow.Infrastructure.Services;
@@ -33,8 +35,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ILedgerRepository, LedgerRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddScoped<IHealthProbeService, HealthProbeService>();
         services.AddScoped<ITenantContext, TenantContext>();
+        services.AddSingleton<IEventPublisher, KafkaEventPublisher>();
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
@@ -43,6 +48,16 @@ public static class ServiceCollectionExtensions
 
             return ConnectionMultiplexer.Connect(options);
         });
+
+        var producerConfig = new ProducerConfig
+        {
+            BootstrapServers = configuration["Kafka:BootstrapServers"],
+            Acks = Acks.All,
+            EnableIdempotence = true
+        };
+
+        services.AddSingleton<IProducer<string, string>>(
+            _ => new ProducerBuilder<string, string>(producerConfig).Build());
 
         return services;
     }

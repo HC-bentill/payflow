@@ -1188,6 +1188,7 @@
           "FluentValidation": "12.1.1",
           "FluentValidation.DependencyInjectionExtensions": "12.1.1",
           "MediatR": "12.5.0",
+          "Microsoft.EntityFrameworkCore": "10.0.7",
           "PayFlow.Domain": "1.0.0",
           "System.IdentityModel.Tokens.Jwt": "8.18.0"
         },

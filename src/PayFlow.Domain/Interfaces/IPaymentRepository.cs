@@ -10,6 +10,10 @@ public interface IPaymentRepository
 
     Task<IReadOnlyCollection<Payment>> ListByTenantAsync(Guid tenantId, CancellationToken ct);
 
+    Task<IReadOnlyCollection<Payment>> GetByTenantAsync(Guid tenantId, int page, int pageSize, CancellationToken ct);
+
+    Task<int> GetCountByTenantAsync(Guid tenantId, CancellationToken ct);
+
     Task AddAsync(Payment payment, CancellationToken ct);
 
     Task UpdateAsync(Payment payment, CancellationToken ct);

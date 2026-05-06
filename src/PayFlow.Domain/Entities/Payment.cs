@@ -51,4 +51,10 @@ public sealed class Payment(
     {
         UpdatedAt = updatedAt;
     }
+
+    public void MarkSucceeded(DateTime updatedAt)
+    {
+        Status = PaymentStatus.Succeeded;
+        UpdatedAt = updatedAt;
+    }
 }

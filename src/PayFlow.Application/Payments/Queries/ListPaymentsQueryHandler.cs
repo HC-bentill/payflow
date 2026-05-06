@@ -1,27 +1,40 @@
 using MediatR;
-using PayFlow.Application.Common;
+using PayFlow.Application.Payments.DTOs;
 using PayFlow.Domain.Interfaces;
 
 namespace PayFlow.Application.Payments.Queries;
 
-public sealed class ListPaymentsQueryHandler(IPaymentRepository paymentRepository, ITenantContext tenantContext)
-    : IRequestHandler<ListPaymentsQuery, IReadOnlyCollection<PaymentSummary>>
+public sealed class ListPaymentsQueryHandler(IPaymentRepository paymentRepository)
+    : IRequestHandler<ListPaymentsQuery, ListPaymentsResult>
 {
-    public async Task<IReadOnlyCollection<PaymentSummary>> Handle(
+    public async Task<ListPaymentsResult> Handle(
         ListPaymentsQuery request,
         CancellationToken cancellationToken)
     {
-        var payments = await paymentRepository.ListByTenantAsync(tenantContext.CurrentTenant.Id, cancellationToken);
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+        var totalCount = await paymentRepository.GetCountByTenantAsync(request.TenantId, cancellationToken);
+        var payments = await paymentRepository.GetByTenantAsync(
+            request.TenantId,
+            page,
+            pageSize,
+            cancellationToken);
+        var totalPages = totalCount == 0
+            ? 0
+            : (int)Math.Ceiling(totalCount / (double)pageSize);
 
-        return payments
-            .Select(payment => new PaymentSummary(
+        return new ListPaymentsResult(
+            payments
+            .Select(payment => new PaymentSummaryDto(
                 payment.Id,
-                payment.TenantId,
                 payment.Amount,
                 payment.Currency,
                 payment.Status,
-                payment.Description,
                 payment.CreatedAt))
-            .ToArray();
+            .ToArray(),
+            page,
+            pageSize,
+            totalCount,
+            totalPages);
     }
 }

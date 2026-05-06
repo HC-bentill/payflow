@@ -54,14 +54,16 @@ public sealed class TenantIsolationTests(PayFlowApiFactory factory) : IClassFixt
         var response = await client.GetAsync("/v1/payments", CancellationToken.None);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var payments = await response.Content.ReadFromJsonAsync<PaymentResponse[]>(
+        var payments = await response.Content.ReadFromJsonAsync<PaymentsListResponse>(
             AuthTestClient.JsonOptions,
             CancellationToken.None);
 
         payments.Should().NotBeNull();
-        payments!.Select(payment => payment.Id).Should().Contain(tenantAPaymentId);
-        payments.Select(payment => payment.Id).Should().NotContain(tenantBPaymentId);
+        payments!.Items.Select(payment => payment.PaymentId).Should().Contain(tenantAPaymentId);
+        payments.Items.Select(payment => payment.PaymentId).Should().NotContain(tenantBPaymentId);
     }
 }
 
-internal sealed record PaymentResponse(Guid Id, Guid TenantId, decimal Amount, string Currency);
+internal sealed record PaymentsListResponse(PaymentSummaryResponse[] Items);
+
+internal sealed record PaymentSummaryResponse(Guid PaymentId, decimal Amount, string Currency);

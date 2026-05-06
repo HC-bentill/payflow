@@ -32,5 +32,7 @@ public sealed class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEn
             .IsRequired();
 
         builder.HasIndex(entry => new { entry.TenantId, entry.Currency });
+
+        builder.HasIndex(entry => entry.PaymentId);
     }
 }

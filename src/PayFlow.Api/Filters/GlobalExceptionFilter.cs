@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using PayFlow.Application.Common.Exceptions;
+using PayFlow.Domain.Exceptions;
 
 namespace PayFlow.Api.Filters;
 
@@ -22,6 +23,14 @@ public sealed class GlobalExceptionFilter : IExceptionFilter
             NotFoundException exception => new ObjectResult(new { error = exception.Message })
             {
                 StatusCode = StatusCodes.Status404NotFound
+            },
+            PaymentAlreadyProcessingException exception => new ObjectResult(new { error = exception.Message })
+            {
+                StatusCode = StatusCodes.Status409Conflict
+            },
+            InvalidCurrencyException exception => new ObjectResult(new { error = exception.Message })
+            {
+                StatusCode = StatusCodes.Status422UnprocessableEntity
             },
             ValidationException exception => new BadRequestObjectResult(new
             {

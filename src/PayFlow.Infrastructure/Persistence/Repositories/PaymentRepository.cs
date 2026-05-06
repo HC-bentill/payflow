@@ -28,15 +28,33 @@ public sealed class PaymentRepository(PayFlowDbContext dbContext) : IPaymentRepo
             .ToArrayAsync(ct);
     }
 
+    public async Task<IReadOnlyCollection<Payment>> GetByTenantAsync(
+        Guid tenantId,
+        int page,
+        int pageSize,
+        CancellationToken ct)
+    {
+        return await dbContext.Payments
+            .Where(payment => payment.TenantId == tenantId)
+            .OrderByDescending(payment => payment.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToArrayAsync(ct);
+    }
+
+    public Task<int> GetCountByTenantAsync(Guid tenantId, CancellationToken ct)
+    {
+        return dbContext.Payments.CountAsync(payment => payment.TenantId == tenantId, ct);
+    }
+
     public async Task AddAsync(Payment payment, CancellationToken ct)
     {
         await dbContext.Payments.AddAsync(payment, ct);
-        await dbContext.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateAsync(Payment payment, CancellationToken ct)
+    public Task UpdateAsync(Payment payment, CancellationToken ct)
     {
         dbContext.Payments.Update(payment);
-        await dbContext.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }

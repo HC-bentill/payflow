@@ -16,7 +16,7 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .ValueGeneratedNever();
 
         builder.Property(payment => payment.IdempotencyKey)
-            .HasMaxLength(128)
+            .HasMaxLength(255)
             .IsRequired();
 
         builder.Property(payment => payment.Amount)
@@ -33,7 +33,7 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .IsRequired();
 
         builder.Property(payment => payment.Description)
-            .HasMaxLength(1000);
+            .HasMaxLength(500);
 
         builder.Property(payment => payment.Metadata)
             .HasColumnType("jsonb");
