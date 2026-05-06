@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "eoDTd3dsmOc=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\HENRY\\RiderProjects\\payflow\\payflow.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\HENRY\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.7\\microsoft.aspnetcore.openapi.10.0.7.nupkg.sha512",
+    "C:\\Users\\HENRY\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
