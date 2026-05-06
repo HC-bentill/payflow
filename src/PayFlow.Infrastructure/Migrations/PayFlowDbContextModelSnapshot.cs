@@ -8,8 +8,8 @@ using PayFlow.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace PayFlow.Infrastructure.Migrations;
-
+namespace PayFlow.Infrastructure.Migrations
+{
     [DbContext(typeof(PayFlowDbContext))]
     partial class PayFlowDbContextModelSnapshot : ModelSnapshot
     {
@@ -191,6 +191,21 @@ namespace PayFlow.Infrastructure.Migrations;
 
                     b.ToTable("webhook_endpoints", (string)null);
                 });
+
+            modelBuilder.Entity("PayFlow.Domain.Entities.WebhookEndpoint", b =>
+                {
+                    b.HasOne("PayFlow.Domain.Entities.Tenant", null)
+                        .WithMany("WebhookEndpoints")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PayFlow.Domain.Entities.Tenant", b =>
+                {
+                    b.Navigation("WebhookEndpoints");
+                });
 #pragma warning restore 612, 618
         }
     }
+}

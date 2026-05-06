@@ -8,5 +8,7 @@ public interface ITenantRepository
 
     Task<Tenant?> GetByApiKeyHashAsync(string hash, CancellationToken ct);
 
+    Task<bool> ExistsAsync(string name, CancellationToken ct);
+
     Task AddAsync(Tenant tenant, CancellationToken ct);
 }

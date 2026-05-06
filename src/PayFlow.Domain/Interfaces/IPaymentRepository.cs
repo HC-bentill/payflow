@@ -4,9 +4,11 @@ namespace PayFlow.Domain.Interfaces;
 
 public interface IPaymentRepository
 {
-    Task<Payment?> GetByIdAsync(Guid id, CancellationToken ct);
+    Task<Payment?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct);
 
     Task<Payment?> GetByIdempotencyKeyAsync(Guid tenantId, string key, CancellationToken ct);
+
+    Task<IReadOnlyCollection<Payment>> ListByTenantAsync(Guid tenantId, CancellationToken ct);
 
     Task AddAsync(Payment payment, CancellationToken ct);
 

@@ -6,9 +6,11 @@ namespace PayFlow.Infrastructure.Persistence.Repositories;
 
 public sealed class PaymentRepository(PayFlowDbContext dbContext) : IPaymentRepository
 {
-    public Task<Payment?> GetByIdAsync(Guid id, CancellationToken ct)
+    public Task<Payment?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct)
     {
-        return dbContext.Payments.FirstOrDefaultAsync(payment => payment.Id == id, ct);
+        return dbContext.Payments.FirstOrDefaultAsync(
+            payment => payment.TenantId == tenantId && payment.Id == id,
+            ct);
     }
 
     public Task<Payment?> GetByIdempotencyKeyAsync(Guid tenantId, string key, CancellationToken ct)
@@ -16,6 +18,14 @@ public sealed class PaymentRepository(PayFlowDbContext dbContext) : IPaymentRepo
         return dbContext.Payments.FirstOrDefaultAsync(
             payment => payment.TenantId == tenantId && payment.IdempotencyKey == key,
             ct);
+    }
+
+    public async Task<IReadOnlyCollection<Payment>> ListByTenantAsync(Guid tenantId, CancellationToken ct)
+    {
+        return await dbContext.Payments
+            .Where(payment => payment.TenantId == tenantId)
+            .OrderByDescending(payment => payment.CreatedAt)
+            .ToArrayAsync(ct);
     }
 
     public async Task AddAsync(Payment payment, CancellationToken ct)

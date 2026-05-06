@@ -2,10 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PayFlow.Application.Health;
+using PayFlow.Application.Common;
 using PayFlow.Domain.Interfaces;
 using PayFlow.Infrastructure.Health;
 using PayFlow.Infrastructure.Persistence;
 using PayFlow.Infrastructure.Persistence.Repositories;
+using PayFlow.Infrastructure.Services;
 using StackExchange.Redis;
 
 namespace PayFlow.Infrastructure;
@@ -32,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ILedgerRepository, LedgerRepository>();
         services.AddScoped<IHealthProbeService, HealthProbeService>();
+        services.AddScoped<ITenantContext, TenantContext>();
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {

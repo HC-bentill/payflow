@@ -35,5 +35,9 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .IsRequired();
 
         builder.HasIndex(tenant => tenant.ApiKeyHash);
+
+        builder.HasMany(tenant => tenant.WebhookEndpoints)
+            .WithOne()
+            .HasForeignKey(endpoint => endpoint.TenantId);
     }
 }

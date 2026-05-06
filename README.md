@@ -30,6 +30,49 @@ PayFlow is a production-grade, multi-tenant payment processing API scaffolded fo
 4. `dotnet run --project src/PayFlow.Api`
 5. Open `https://localhost:5001/swagger`
 
+PostgreSQL is exposed from Docker Compose on `localhost:5433` to avoid collisions with native PostgreSQL installations that commonly use `5432`.
+
+## Authentication
+
+PayFlow uses a two-step auth flow:
+
+### 1. Register a tenant
+
+POST `/v1/auth/register`
+
+```json
+{
+  "name": "my-store",
+  "tier": "Free"
+}
+```
+
+Returns a one-time API key: `"pf_live_..."`.
+Store it securely - it cannot be retrieved again.
+
+### 2. Exchange for a JWT
+
+POST `/v1/auth/token`
+
+```json
+{
+  "apiKey": "pf_live_...",
+  "role": "Developer"
+}
+```
+
+Returns a JWT valid for 15 minutes.
+
+### 3. Use the JWT
+
+Add to every request header:
+
+```text
+Authorization: Bearer eyJ...
+```
+
+JWTs expire after 15 minutes. Re-issue via `/v1/auth/token` using your API key.
+
 ## Solution Projects
 
 - `src/PayFlow.Api` - ASP.NET Core 10 Web API host, controllers, Swagger, JWT auth, health, and Prometheus metrics.

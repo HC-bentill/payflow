@@ -1,10 +1,9 @@
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace PayFlow.Api.Tests;
 
-public sealed class ApiSmokeTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ApiSmokeTests(PayFlowApiFactory factory)
+    : IClassFixture<PayFlowApiFactory>
 {
     [Fact]
     public async Task SwaggerUi_Loads()

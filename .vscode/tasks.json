@@ -1,0 +1,87 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/PayFlow.sln"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "test",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "test",
+        "${workspaceFolder}/PayFlow.sln"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "run api",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/src/PayFlow.Api/PayFlow.Api.csproj",
+        "--launch-profile",
+        "https"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "watch api",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "watch",
+        "--project",
+        "${workspaceFolder}/src/PayFlow.Api/PayFlow.Api.csproj",
+        "run",
+        "--launch-profile",
+        "https"
+      ],
+      "problemMatcher": "$msCompile",
+      "isBackground": true
+    },
+    {
+      "label": "ef database update",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "ef",
+        "database",
+        "update",
+        "--project",
+        "${workspaceFolder}/src/PayFlow.Infrastructure",
+        "--startup-project",
+        "${workspaceFolder}/src/PayFlow.Api"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "docker compose up",
+      "command": "docker",
+      "type": "process",
+      "args": [
+        "compose",
+        "up",
+        "-d"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

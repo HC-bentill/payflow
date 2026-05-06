@@ -16,6 +16,11 @@ public sealed class TenantRepository(PayFlowDbContext dbContext) : ITenantReposi
         return dbContext.Tenants.FirstOrDefaultAsync(tenant => tenant.ApiKeyHash == hash, ct);
     }
 
+    public Task<bool> ExistsAsync(string name, CancellationToken ct)
+    {
+        return dbContext.Tenants.AnyAsync(tenant => tenant.Name == name, ct);
+    }
+
     public async Task AddAsync(Tenant tenant, CancellationToken ct)
     {
         await dbContext.Tenants.AddAsync(tenant, ct);

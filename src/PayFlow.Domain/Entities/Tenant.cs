@@ -24,4 +24,6 @@ public sealed class Tenant(
     public DateTime CreatedAt { get; private set; } = createdAt;
 
     public bool IsActive { get; private set; } = isActive;
+
+    public ICollection<WebhookEndpoint> WebhookEndpoints { get; private set; } = [];
 }
