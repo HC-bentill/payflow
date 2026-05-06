@@ -1,23 +1,25 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-USER $APP_UID
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["payflow.csproj", "./"]
-RUN dotnet restore "payflow.csproj"
+
+COPY PayFlow.sln ./
+COPY src/PayFlow.Api/PayFlow.Api.csproj src/PayFlow.Api/
+COPY src/PayFlow.Application/PayFlow.Application.csproj src/PayFlow.Application/
+COPY src/PayFlow.Domain/PayFlow.Domain.csproj src/PayFlow.Domain/
+COPY src/PayFlow.Infrastructure/PayFlow.Infrastructure.csproj src/PayFlow.Infrastructure/
+COPY tests/PayFlow.Api.Tests/PayFlow.Api.Tests.csproj tests/PayFlow.Api.Tests/
+
+RUN dotnet restore PayFlow.sln
+
 COPY . .
-WORKDIR "/src/"
-RUN dotnet build "./payflow.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet publish src/PayFlow.Api/PayFlow.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./payflow.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
-
-FROM base AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+LABEL org.opencontainers.image.title="PayFlow API"
 WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "payflow.dll"]
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "PayFlow.Api.dll"]

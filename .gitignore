@@ -1,1 +1,11 @@
-/bin
+bin/
+obj/
+
+**/bin/
+**/obj/
+
+.vs/
+.idea/
+
+TestResults/
+*.user
