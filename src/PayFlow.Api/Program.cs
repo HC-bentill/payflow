@@ -10,8 +10,20 @@ using PayFlow.Api.Services;
 using PayFlow.Application;
 using PayFlow.Application.Health;
 using PayFlow.Infrastructure;
+using PayFlow.Infrastructure.Middleware;
+using Serilog;
+using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Host.UseSerilog((context, services, config) => config
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithEnvironmentName()
+    .Enrich.WithThreadId()
+    .WriteTo.Console(new CompactJsonFormatter()));
 
 builder.Services
     .AddControllers(options => options.Filters.Add<GlobalExceptionFilter>())
@@ -77,11 +89,11 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services
     .AddOpenTelemetry()
-    .WithMetrics(metrics =>
-    {
-        metrics.AddAspNetCoreInstrumentation();
-        metrics.AddPrometheusExporter();
-    });
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddMeter("PayFlow")
+        .AddPrometheusExporter());
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -90,12 +102,14 @@ builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<RateLimitingMiddleware>();
 app.UseMiddleware<TenantContextMiddleware>();
 
 app.MapControllers().RequireAuthorization("AnyRole");

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "KVdDdfU9y0M=",
+  "dgSpecHash": "yX9fwVj9tUo=",
   "success": true,
   "projectFilePath": "C:\\Users\\HENRY\\RiderProjects\\payflow\\src\\PayFlow.Infrastructure\\PayFlow.Infrastructure.csproj",
   "expectedPackageFiles": [
@@ -21,9 +21,20 @@
     "C:\\Users\\HENRY\\.nuget\\packages\\npgsql\\10.0.2\\npgsql.10.0.2.nupkg.sha512",
     "C:\\Users\\HENRY\\.nuget\\packages\\npgsql.entityframeworkcore.postgresql\\10.0.1\\npgsql.entityframeworkcore.postgresql.10.0.1.nupkg.sha512",
     "C:\\Users\\HENRY\\.nuget\\packages\\pipelines.sockets.unofficial\\2.2.8\\pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
+    "C:\\Users\\HENRY\\.nuget\\packages\\serilog\\4.3.1\\serilog.4.3.1.nupkg.sha512",
     "C:\\Users\\HENRY\\.nuget\\packages\\stackexchange.redis\\2.12.14\\stackexchange.redis.2.12.14.nupkg.sha512",
     "C:\\Users\\HENRY\\.nuget\\packages\\system.identitymodel.tokens.jwt\\8.18.0\\system.identitymodel.tokens.jwt.8.18.0.nupkg.sha512",
     "C:\\Users\\HENRY\\.nuget\\packages\\system.io.hashing\\10.0.2\\system.io.hashing.10.0.2.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1900",
+      "level": "Warning",
+      "message": "Error occurred while getting package vulnerability data: Unable to load the service index for source https://api.nuget.org/v3/index.json.",
+      "projectPath": "C:\\Users\\HENRY\\RiderProjects\\payflow\\src\\PayFlow.Infrastructure\\PayFlow.Infrastructure.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\HENRY\\RiderProjects\\payflow\\src\\PayFlow.Infrastructure\\PayFlow.Infrastructure.csproj",
+      "targetGraphs": []
+    }
+  ]
 }

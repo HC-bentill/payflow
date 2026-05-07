@@ -2,12 +2,15 @@ using System.Security.Cryptography;
 using System.Text;
 using MediatR;
 using PayFlow.Application.Common.Exceptions;
+using PayFlow.Application.Common.Observability;
 using PayFlow.Domain.Entities;
 using PayFlow.Domain.Interfaces;
 
 namespace PayFlow.Application.Auth.Commands;
 
-public sealed class RegisterTenantHandler(ITenantRepository tenantRepository)
+public sealed class RegisterTenantHandler(
+    ITenantRepository tenantRepository,
+    IPayFlowMetrics metrics)
     : IRequestHandler<RegisterTenantCommand, RegisterTenantResult>
 {
     public async Task<RegisterTenantResult> Handle(RegisterTenantCommand request, CancellationToken cancellationToken)
@@ -28,6 +31,7 @@ public sealed class RegisterTenantHandler(ITenantRepository tenantRepository)
             true);
 
         await tenantRepository.AddAsync(tenant, cancellationToken);
+        metrics.IncrementActiveTenants();
 
         return new RegisterTenantResult(tenant.Id, rawKey);
     }

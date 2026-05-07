@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "payflow-api"
+    static_configs:
+      - targets: ["host.docker.internal:5000"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+
+# host.docker.internal resolves to the host machine from inside Docker.
+# This lets Prometheus scrape the .NET app running on the host.

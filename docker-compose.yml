@@ -1,4 +1,4 @@
-# Local dev only — not used in production
+# Local dev only - not used in production
 name: payflow
 
 services:
@@ -63,6 +63,7 @@ services:
         cub kafka-ready -b localhost:9092 1 60
         kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic payment.events --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic webhook.delivery --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic webhook.dlq --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic notifications.dispatch --partitions 1 --replication-factor 1
         wait $$kafka_pid
     healthcheck:
@@ -73,9 +74,39 @@ services:
     networks:
       - payflow-dev
 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: payflow-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    networks:
+      - payflow-dev
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: payflow-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - payflow-dev
+
 networks:
   payflow-dev:
     name: payflow-dev
 
 volumes:
   postgres-data:
+  grafana-data:

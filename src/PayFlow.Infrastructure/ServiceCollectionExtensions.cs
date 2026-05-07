@@ -2,13 +2,18 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using PayFlow.Application.Health;
 using PayFlow.Application.Common;
+using PayFlow.Application.Common.Observability;
+using PayFlow.Application.Common.RateLimiting;
+using PayFlow.Application.Health;
 using PayFlow.Domain.Interfaces;
 using PayFlow.Infrastructure.Health;
 using PayFlow.Infrastructure.Messaging;
+using PayFlow.Infrastructure.Messaging.Consumers;
+using PayFlow.Infrastructure.Observability;
 using PayFlow.Infrastructure.Persistence;
 using PayFlow.Infrastructure.Persistence.Repositories;
+using PayFlow.Infrastructure.RateLimiting;
 using PayFlow.Infrastructure.Services;
 using StackExchange.Redis;
 
@@ -35,11 +40,20 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ILedgerRepository, LedgerRepository>();
+        services.AddScoped<IWebhookEndpointRepository, WebhookEndpointRepository>();
+        services.AddScoped<IWebhookDeliveryLogRepository, WebhookDeliveryLogRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddScoped<IHealthProbeService, HealthProbeService>();
         services.AddScoped<ITenantContext, TenantContext>();
+        services.AddSingleton<IPayFlowMetrics, PayFlowMetrics>();
+        services.AddSingleton<IRateLimiter, RedisRateLimiter>();
         services.AddSingleton<IEventPublisher, KafkaEventPublisher>();
+        services.AddSingleton<KafkaConsumerFactory>();
+        services.AddHttpClient("webhook-delivery", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
@@ -58,6 +72,16 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IProducer<string, string>>(
             _ => new ProducerBuilder<string, string>(producerConfig).Build());
+
+        if (configuration.GetValue("Kafka:Consumers:Enabled", true))
+        {
+            services.AddHostedService<WebhookDispatchConsumer>();
+            services.AddHostedService<WebhookDeliveryWorker>();
+            services.AddHostedService<DLQMonitorConsumer>();
+            services.AddHostedService<NotificationConsumer>();
+        }
+
+        services.AddHostedService<KafkaLagMonitor>();
 
         return services;
     }

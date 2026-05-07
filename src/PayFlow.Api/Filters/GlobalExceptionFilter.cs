@@ -32,6 +32,7 @@ public sealed class GlobalExceptionFilter : IExceptionFilter
             {
                 StatusCode = StatusCodes.Status422UnprocessableEntity
             },
+            InvalidOperationException exception => new BadRequestObjectResult(new { error = exception.Message }),
             ValidationException exception => new BadRequestObjectResult(new
             {
                 errors = exception.Errors
