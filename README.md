@@ -16,6 +16,62 @@ PayFlow is a production-grade, multi-tenant payment processing API scaffolded fo
                                                                +-------+
 ```
 
+## Roadmap
+`Phase 1`   Foundation
+          Solution structure, EF Core + PostgreSQL, Redis + Kafka wiring,
+          GET /health, GET /metrics, Docker Compose, multi-stage Dockerfile
+
+`Phase 2`   Multi-Tenant Authentication
+          Tenant registration, one-time API key issuance (pf_live_ prefix),
+          SHA256 key hashing, JWT issuance (15 min), TenantContextMiddleware,
+          role-based access (Admin, Developer, ReadOnly)
+
+`Phase 3`   Idempotent Payment Processing
+          POST /v1/payments with Idempotency-Key header, Redis distributed lock,
+          double-entry ledger (Debit + Credit), wallet balance computed from ledger,
+          Kafka event publishing (PaymentProcessed → payment.events),
+          paginated payment listing, tenant isolation
+
+`Phase 4`   Event-Driven Workers + Webhooks
+          WebhookDispatchConsumer (payment.events → webhook.delivery),
+          WebhookDeliveryWorker with exponential backoff (3s→10s→60s→600s),
+          dead letter queue (webhook.dlq), DLQMonitorConsumer,
+          HMAC-SHA256 webhook signatures (X-PayFlow-Signature),
+          webhook delivery logs, replay API, NotificationConsumer (stubbed)
+
+`Phase 5`   Rate Limiting
+          Redis sliding window rate limiter, per-tenant tier limits
+          (Free: 100/min, Pro: 1000/min), IP-based auth endpoint limits,
+          X-RateLimit-Limit / Remaining / Reset headers, 429 + Retry-After
+
+`Phase 6`   Observability
+          Custom Prometheus metrics (payments, webhooks, rate limits, Kafka lag),
+          Grafana dashboard (10 panels, pre-provisioned), Serilog structured
+          JSON logging, correlation ID middleware (X-Correlation-ID),
+          Kafka consumer lag monitor
+
+`Phase 7`   CI/CD
+          GitHub Actions pipeline (lint → build → security scan → test → Docker build),
+          NuGet vulnerability scanning, code coverage enforcement (min 70%),
+          Docker image tagged with git SHA, branch protection, .editorconfig,
+          CHANGELOG.md
+
+──────────────────────────────────────────────────────────────────
+
+`Phase 7.5`  Ledger Rework — Sender / Receiver Wallets
+           Multi-party payment model, SenderWalletId + ReceiverWalletId,
+           separate ledger entries per wallet, real balance movement
+
+`Phase 8`   Homelab Setup
+           Ubuntu VMs on VirtualBox, k3s cluster (1 control plane + 2 workers),
+           Postgres + Redis + Grafana on dedicated VM, cluster networking,
+           local Docker registry
+
+`Phase 9`   Production Deployment
+           Kubernetes manifests (Deployment, Service, ConfigMap, Secret),
+           Kafka via Bitnami Helm chart, GitHub Actions push to local registry,
+           kubectl rollout, production Grafana dashboard connected to live cluster
+
 ## Prerequisites
 
 - Docker
@@ -264,3 +320,51 @@ dotnet test
 ```
 
 Kubernetes deployment guide will be added in a future phase.
+
+## CI/CD
+
+### Pipeline
+Every push to main or develop triggers the full pipeline:
+  Lint -> Build -> Security Scan -> Test + Coverage -> Docker Build
+
+### Branch strategy
+  main     — production-ready only, protected, requires PR + passing CI
+  develop  — integration branch
+  feature/* — feature branches, merge to develop via PR
+
+### Coverage threshold
+Minimum 70% line coverage enforced. Pipeline fails below this.
+
+### Security scanning
+Every push scans all NuGet packages (including transitive) for known CVEs.
+Pipeline fails if any vulnerable package is detected.
+
+### Docker image tags
+  payflow-api:sha-   — immutable, tied to exact commit
+  payflow-api:main              — latest main branch build
+  payflow-api:latest            — latest production build
+
+### Secrets
+See .github/SECRETS.md for required secrets.
+Never commit secrets — use GitHub Actions Secrets only.
+
+## Coding standards — enforce throughout
+- Workflow YAML indented with 2 spaces (GitHub Actions standard)
+- All secrets referenced via ${{ secrets.NAME }} — never hardcoded
+- All jobs explicitly declare needs: to enforce ordering
+- Cache keys include file hashes so cache invalidates on dependency changes
+- Test environment variables use __ notation (ConnectionStrings__Postgres)
+  for ASP.NET Core environment variable configuration override
+- dotnet build must use /WarnAsError — zero warning tolerance in CI
+
+## Definition of done
+- Push to main -> GitHub Actions pipeline triggers automatically
+- Lint job fails if dotnet format detects violations
+- Build job fails if any compiler warning exists
+- Security job fails if any vulnerable NuGet package detected
+- Test job: all tests pass, coverage report generated, posted to job summary
+- Coverage below 70% -> pipeline fails
+- Docker job: image builds successfully, tagged with git SHA
+- Summary job: pipeline result table posted to GitHub Actions summary
+- .editorconfig enforces consistent formatting across team
+- CHANGELOG.md accurately reflects all 7 phases

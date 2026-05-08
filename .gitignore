@@ -1,11 +1,28 @@
-bin/
-obj/
-
+# Build outputs
 **/bin/
 **/obj/
 
-.vs/
-.idea/
-
+# Test results
 TestResults/
+
+# Coverage
+*.coverage
+*.coveragexml
+
+# Secrets
+appsettings.*.local.json
+.env
+.env.*
+
+# Docker
+docker-compose.override.yml
+
+# Rider / VS / VSCode
+.idea/
+.vscode/
 *.user
+.vs/
+
+# Logs
+*.log
+logs/
