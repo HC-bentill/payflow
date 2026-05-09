@@ -17,13 +17,14 @@ public sealed class WebhookDeliveryTests(PayFlowApiFactory factory) : IClassFixt
     {
         await factory.ResetDatabaseAsync();
         var authenticated = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         await authenticated.Client.PostAsJsonAsync(
             "/v1/webhooks/endpoints",
             new RegisterWebhookEndpointRequest("https://example.com/webhooks/payflow", "secret-min-16-chars"),
             AuthTestClient.JsonOptions,
             CancellationToken.None);
 
-        var paymentResponse = await authenticated.Client.CreatePaymentAsync($"idem-{Guid.NewGuid():N}");
+        var paymentResponse = await authenticated.Client.CreatePaymentAsync(receiver.TenantId, $"idem-{Guid.NewGuid():N}");
         paymentResponse.EnsureSuccessStatusCode();
 
         var log = await WaitForDeliveryLogAsync(authenticated.TenantId);

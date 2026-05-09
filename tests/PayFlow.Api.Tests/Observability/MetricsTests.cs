@@ -23,8 +23,11 @@ public sealed class MetricsTests(PayFlowApiFactory factory) : IClassFixture<PayF
     {
         await factory.ResetDatabaseAsync();
         var authenticated = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
 
-        var paymentResponse = await authenticated.Client.CreatePaymentAsync($"metrics-payment-{Guid.NewGuid():N}");
+        var paymentResponse = await authenticated.Client.CreatePaymentAsync(
+            receiver.TenantId,
+            $"metrics-payment-{Guid.NewGuid():N}");
         paymentResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var metricsResponse = await factory.CreateClient().GetAsync("/metrics", CancellationToken.None);
@@ -32,6 +35,8 @@ public sealed class MetricsTests(PayFlowApiFactory factory) : IClassFixture<PayF
 
         metricsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         metrics.Should().Contain("payflow_payments_total");
+        metrics.Should().Contain("direction=\"debit\"");
+        metrics.Should().Contain("direction=\"credit\"");
     }
 
     [Fact]

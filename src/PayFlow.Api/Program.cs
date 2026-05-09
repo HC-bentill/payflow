@@ -99,9 +99,12 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<IApplicationEnvironment, ApplicationEnvironment>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+    p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 var app = builder.Build();
 
+app.UseCors();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();

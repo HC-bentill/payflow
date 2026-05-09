@@ -278,8 +278,8 @@ Metrics are exposed at GET `/metrics` in Prometheus text format.
 Key metrics:
 
 ```text
-payflow_payments_total{status,currency,tier}     - payment outcomes
-payflow_payment_amount{currency,tier}            - payment amount distribution
+payflow_payments_total{status,currency,tier,direction} - payment outcomes
+payflow_payment_amount{currency,tier,direction}        - payment amount distribution
 payflow_webhook_deliveries_total{status}         - webhook delivery outcomes
 payflow_rate_limit_hits_total{tier,endpoint}     - rate limit breaches
 payflow_kafka_consumer_lag{topic,consumer_group} - Kafka processing backlog

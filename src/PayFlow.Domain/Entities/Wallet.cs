@@ -17,5 +17,5 @@ public sealed class Wallet(Guid id, Guid ownerId, string currency, DateTime crea
 
     public DateTime CreatedAt { get; private set; } = createdAt;
 
-    public IReadOnlyCollection<LedgerEntry> LedgerEntries => ledgerEntries;
+    public ICollection<LedgerEntry> LedgerEntries => ledgerEntries;
 }
