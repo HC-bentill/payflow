@@ -25,6 +25,7 @@ public sealed class PaymentsController(IMediator mediator, ITenantContext tenant
         var result = await mediator.Send(
             new CreatePaymentCommand(
                 tenantContext.CurrentTenant.Id,
+                request.ReceiverTenantId,
                 idempotencyKeyValues.ToString(),
                 request.Amount,
                 request.Currency,
@@ -65,11 +66,24 @@ public sealed class PaymentsController(IMediator mediator, ITenantContext tenant
         return Ok(payments);
     }
 
-    [HttpGet("wallet/{currency}")]
-    public async Task<IActionResult> Wallet(string currency, CancellationToken ct)
+    [HttpGet("wallets")]
+    public async Task<IActionResult> Wallets(CancellationToken ct)
     {
+        var wallets = await mediator.Send(new ListWalletsQuery(tenantContext.CurrentTenant.Id), ct);
+        return Ok(wallets);
+    }
+
+    [HttpGet("wallets/{walletId:guid}/balance")]
+    public async Task<IActionResult> WalletBalance(Guid walletId, CancellationToken ct)
+    {
+        var wallets = await mediator.Send(new ListWalletsQuery(tenantContext.CurrentTenant.Id), ct);
+        if (!wallets.Any(wallet => wallet.WalletId == walletId))
+        {
+            return Forbid();
+        }
+
         var balance = await mediator.Send(
-            new GetWalletBalanceQuery(tenantContext.CurrentTenant.Id, currency),
+            new GetWalletBalanceQuery(tenantContext.CurrentTenant.Id, walletId),
             ct);
 
         return Ok(balance);

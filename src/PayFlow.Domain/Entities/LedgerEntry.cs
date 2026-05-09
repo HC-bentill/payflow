@@ -3,6 +3,7 @@ namespace PayFlow.Domain.Entities;
 public sealed class LedgerEntry(
     Guid id,
     Guid paymentId,
+    Guid walletId,
     Guid tenantId,
     LedgerEntryType type,
     decimal amount,
@@ -10,7 +11,7 @@ public sealed class LedgerEntry(
     DateTime createdAt)
 {
     private LedgerEntry()
-        : this(Guid.Empty, Guid.Empty, Guid.Empty, LedgerEntryType.Debit, 0, string.Empty, DateTime.MinValue)
+        : this(Guid.Empty, Guid.Empty, Guid.Empty, Guid.Empty, LedgerEntryType.Debit, 0, string.Empty, DateTime.MinValue)
     {
     }
 
@@ -18,7 +19,11 @@ public sealed class LedgerEntry(
 
     public Guid PaymentId { get; private set; } = paymentId;
 
+    public Guid WalletId { get; private set; } = walletId;
+
     public Guid TenantId { get; private set; } = tenantId;
+
+    public Wallet Wallet { get; private set; } = null!;
 
     public LedgerEntryType Type { get; private set; } = type;
 

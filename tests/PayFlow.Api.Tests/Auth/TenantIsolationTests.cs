@@ -21,10 +21,18 @@ public sealed class TenantIsolationTests(PayFlowApiFactory factory) : IClassFixt
 
         await factory.SeedAsync(async (dbContext, ct) =>
         {
+            var tenantAWallet = new Wallet(Guid.NewGuid(), tenantA.TenantId, "USD", now);
+            var tenantBWallet = new Wallet(Guid.NewGuid(), tenantB.TenantId, "USD", now);
+
+            dbContext.Wallets.AddRange(tenantAWallet, tenantBWallet);
             dbContext.Payments.AddRange(
                 new Payment(
                     tenantAPaymentId,
                     tenantA.TenantId,
+                    tenantAWallet.Id,
+                    tenantBWallet.Id,
+                    tenantA.TenantId,
+                    tenantB.TenantId,
                     $"idem-a-{Guid.NewGuid():N}",
                     100,
                     "USD",
@@ -36,6 +44,10 @@ public sealed class TenantIsolationTests(PayFlowApiFactory factory) : IClassFixt
                 new Payment(
                     tenantBPaymentId,
                     tenantB.TenantId,
+                    tenantBWallet.Id,
+                    tenantAWallet.Id,
+                    tenantB.TenantId,
+                    tenantA.TenantId,
                     $"idem-b-{Guid.NewGuid():N}",
                     200,
                     "USD",

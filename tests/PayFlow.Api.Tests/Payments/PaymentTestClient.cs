@@ -12,17 +12,24 @@ internal static class PaymentTestClient
         CancellationToken ct = default)
     {
         var client = factory.CreateClient();
-        var registration = await client.RegisterTenantAsync(
-            tenantName ?? $"tenant-{Guid.NewGuid():N}",
-            ct: ct);
+        var tenant = await CreateTestTenant(client, tenantName, ct);
+        return new AuthenticatedClient(client, tenant.TenantId);
+    }
+
+    public static async Task<AuthenticatedClient> CreateTestTenant(
+        HttpClient client,
+        string? tenantName = null,
+        CancellationToken ct = default)
+    {
+        var registration = await client.RegisterTenantAsync(tenantName ?? $"tenant-{Guid.NewGuid():N}", ct: ct);
         var token = await client.IssueTokenAsync(registration.ApiKey, TenantRole.Developer, ct);
         client.UseBearerToken(token.Token);
-
         return new AuthenticatedClient(client, registration.TenantId);
     }
 
     public static async Task<HttpResponseMessage> CreatePaymentAsync(
         this HttpClient client,
+        Guid receiverTenantId,
         string idempotencyKey,
         decimal amount = 100,
         string currency = "USD",
@@ -33,7 +40,7 @@ internal static class PaymentTestClient
         using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/payments")
         {
             Content = JsonContent.Create(
-                new CreatePaymentRequest(amount, currency, description, metadata),
+                new CreatePaymentRequest(amount, currency, receiverTenantId, description, metadata),
                 options: AuthTestClient.JsonOptions)
         };
         request.Headers.Add("Idempotency-Key", idempotencyKey);
@@ -47,11 +54,16 @@ internal sealed record AuthenticatedClient(HttpClient Client, Guid TenantId);
 internal sealed record CreatePaymentRequest(
     decimal Amount,
     string Currency,
+    Guid ReceiverTenantId,
     string? Description,
     string? Metadata);
 
 internal sealed record PaymentResponse(
     Guid PaymentId,
+    Guid SenderWalletId,
+    Guid ReceiverWalletId,
+    Guid SenderTenantId,
+    Guid ReceiverTenantId,
     string IdempotencyKey,
     decimal Amount,
     string Currency,
@@ -61,6 +73,10 @@ internal sealed record PaymentResponse(
 
 internal sealed record PaymentDetailsResponse(
     Guid PaymentId,
+    Guid SenderWalletId,
+    Guid ReceiverWalletId,
+    Guid SenderTenantId,
+    Guid ReceiverTenantId,
     string IdempotencyKey,
     decimal Amount,
     string Currency,
@@ -73,6 +89,7 @@ internal sealed record PaymentDetailsResponse(
 
 internal sealed record LedgerEntryResponse(
     Guid Id,
+    Guid WalletId,
     string Type,
     decimal Amount,
     string Currency,
@@ -92,8 +109,14 @@ internal sealed record PaymentSummaryResponse(
     string Status,
     DateTime CreatedAt);
 
+internal sealed record WalletSummaryResponse(
+    Guid WalletId,
+    string Currency,
+    decimal Balance,
+    DateTime CreatedAt);
+
 internal sealed record WalletBalanceResponse(
-    Guid TenantId,
+    Guid WalletId,
     string Currency,
     decimal Balance,
     DateTime ComputedAt);

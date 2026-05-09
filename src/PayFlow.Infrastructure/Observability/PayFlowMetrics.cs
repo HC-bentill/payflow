@@ -36,13 +36,14 @@ public sealed class PayFlowMetrics : IPayFlowMetrics
             observeValues: ObserveKafkaLagMeasurements);
     }
 
-    public void RecordPayment(string status, string currency, string tier, decimal amount)
+    public void RecordPayment(string status, string currency, string tier, decimal amount, string direction = "none")
     {
         var tags = new TagList
         {
             { "status", status },
             { "currency", currency },
-            { "tier", tier }
+            { "tier", tier  },
+            { "direction", direction }
         };
 
         paymentsCounter.Add(1, tags);

@@ -12,12 +12,13 @@ public sealed class IdempotencyTests(PayFlowApiFactory factory) : IClassFixture<
     public async Task ConcurrentRequests_WithSameIdempotencyKey_CreateOnlyOnePayment()
     {
         await factory.ResetDatabaseAsync();
-        var authenticated = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var idempotencyKey = $"idem-{Guid.NewGuid():N}";
 
         var responses = await Task.WhenAll(
-            authenticated.Client.CreatePaymentAsync(idempotencyKey),
-            authenticated.Client.CreatePaymentAsync(idempotencyKey));
+            sender.Client.CreatePaymentAsync(receiver.TenantId, idempotencyKey),
+            sender.Client.CreatePaymentAsync(receiver.TenantId, idempotencyKey));
 
         responses.Select(response => response.StatusCode)
             .Should()
@@ -27,9 +28,7 @@ public sealed class IdempotencyTests(PayFlowApiFactory factory) : IClassFixture<
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PayFlowDbContext>();
         var paymentCount = await dbContext.Payments.CountAsync(
-            payment =>
-                payment.TenantId == authenticated.TenantId &&
-                payment.IdempotencyKey == idempotencyKey,
+            payment => payment.TenantId == sender.TenantId && payment.IdempotencyKey == idempotencyKey,
             CancellationToken.None);
 
         paymentCount.Should().Be(1);

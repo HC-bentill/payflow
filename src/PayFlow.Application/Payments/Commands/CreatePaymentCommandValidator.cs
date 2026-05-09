@@ -19,6 +19,9 @@ public sealed class CreatePaymentCommandValidator : AbstractValidator<CreatePaym
             .Must(currency => CurrencyRegex.IsMatch(currency))
             .WithMessage("Currency must match [A-Z]{3}");
 
+        RuleFor(command => command.ReceiverTenantId)
+            .NotEmpty();
+
         RuleFor(command => command.IdempotencyKey)
             .NotEmpty()
             .MaximumLength(255);

@@ -131,14 +131,7 @@ JWTs expire after 15 minutes. Re-issue via `/v1/auth/token` using your API key.
 
 ## Payments API
 
-All endpoints require:
-
-```text
-Authorization: Bearer <jwt>
-```
-
 ### Create a payment
-
 POST `/v1/payments`
 
 Headers:
@@ -154,25 +147,42 @@ Body:
 {
   "amount": 100.00,
   "currency": "USD",
+  "receiverTenantId": "guid-of-receiver",
   "description": "Order #1234",
   "metadata": "{\"orderId\": \"1234\"}"
 }
 ```
 
-IMPORTANT: Generate the idempotency key BEFORE entering any retry loop.
-The same key replayed returns the same response without reprocessing.
+Response:
 
-### Get a payment
+```json
+{
+  "paymentId": "...",
+  "senderWalletId": "...",
+  "receiverWalletId": "...",
+  "senderTenantId": "...",
+  "receiverTenantId": "...",
+  "amount": 100.00,
+  "currency": "USD",
+  "status": "Succeeded"
+}
+```
 
-GET `/v1/payments/{id}`
+### Get wallet balances
+GET `/v1/payments/wallets`
+-> List all wallets for authenticated tenant with current balance
 
-### List payments
+GET `/v1/payments/wallets/{walletId}/balance`
+-> Balance for a specific wallet
 
-GET `/v1/payments?page=1&pageSize=20`
+### How balances work
+Wallet balance = SUM(Credits) - SUM(Debits) from ledger entries
 
-### Get wallet balance
+After a 100 USD payment from Tenant A to Tenant B:
+- Tenant A wallet balance: -100.00 USD (money sent)
+- Tenant B wallet balance: +100.00 USD (money received)
 
-GET `/v1/payments/wallet/{currency}`
+Wallets are created automatically on first payment - no manual setup needed.
 
 ## Webhooks
 
@@ -349,22 +359,23 @@ See .github/SECRETS.md for required secrets.
 Never commit secrets — use GitHub Actions Secrets only.
 
 ## Coding standards — enforce throughout
-- Workflow YAML indented with 2 spaces (GitHub Actions standard)
-- All secrets referenced via ${{ secrets.NAME }} — never hardcoded
-- All jobs explicitly declare needs: to enforce ordering
-- Cache keys include file hashes so cache invalidates on dependency changes
-- Test environment variables use __ notation (ConnectionStrings__Postgres)
-  for ASP.NET Core environment variable configuration override
-- dotnet build must use /WarnAsError — zero warning tolerance in CI
+- C# 13: primary constructors, file-scoped namespaces, collection expressions
+- All async methods accept and forward CancellationToken
+- FindOrCreateAsync must NOT call SaveChangesAsync — caller owns the transaction
+- Wallet uniqueness is enforced at DB level (unique index) AND application level
+- Never accept SenderTenantId from request body — always derive from JWT
+- Sender and receiver must be different tenants — validate explicitly
+- All wallet balance queries use GetWalletBalanceAsync — never store balance as a column
 
 ## Definition of done
-- Push to main -> GitHub Actions pipeline triggers automatically
-- Lint job fails if dotnet format detects violations
-- Build job fails if any compiler warning exists
-- Security job fails if any vulnerable NuGet package detected
-- Test job: all tests pass, coverage report generated, posted to job summary
-- Coverage below 70% -> pipeline fails
-- Docker job: image builds successfully, tagged with git SHA
-- Summary job: pipeline result table posted to GitHub Actions summary
-- .editorconfig enforces consistent formatting across team
-- CHANGELOG.md accurately reflects all 7 phases
+- dotnet build -> zero errors, zero warnings
+- dotnet test -> ALL tests green including updated existing tests
+- POST /v1/payments with receiverTenantId -> 201
+- POST /v1/payments with same sender and receiver -> 400
+- POST /v1/payments with non-existent receiver -> 404
+- After 100 USD payment: sender wallet balance = -100.00, receiver = +100.00
+- GET /v1/payments/wallets -> returns wallets with real non-zero balances
+- Ledger entries have correct WalletId — verified in DB
+- Wallets auto-created on first payment — no manual wallet creation needed
+- PaymentProcessedEvent includes senderWalletId and receiverWalletId
+- All Phase 3, 4, 5, 6 tests still pass with updated payment model

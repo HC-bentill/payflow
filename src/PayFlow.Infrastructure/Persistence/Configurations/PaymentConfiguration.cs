@@ -44,9 +44,26 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(payment => payment.UpdatedAt)
             .IsRequired();
 
+        builder.Property(payment => payment.SenderWalletId).IsRequired();
+        builder.Property(payment => payment.ReceiverWalletId).IsRequired();
+        builder.Property(payment => payment.SenderTenantId).IsRequired();
+        builder.Property(payment => payment.ReceiverTenantId).IsRequired();
+
         builder.HasIndex(payment => payment.TenantId);
+        builder.HasIndex(payment => payment.SenderTenantId);
+        builder.HasIndex(payment => payment.ReceiverTenantId);
 
         builder.HasIndex(payment => new { payment.TenantId, payment.IdempotencyKey })
             .IsUnique();
+
+        builder.HasOne<Wallet>()
+            .WithMany()
+            .HasForeignKey(payment => payment.SenderWalletId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Wallet>()
+            .WithMany()
+            .HasForeignKey(payment => payment.ReceiverWalletId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

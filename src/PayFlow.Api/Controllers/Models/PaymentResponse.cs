@@ -5,6 +5,10 @@ namespace PayFlow.Api.Controllers.Models;
 
 public sealed record PaymentResponse(
     Guid PaymentId,
+    Guid SenderWalletId,
+    Guid ReceiverWalletId,
+    Guid SenderTenantId,
+    Guid ReceiverTenantId,
     string IdempotencyKey,
     decimal Amount,
     string Currency,
@@ -16,6 +20,10 @@ public sealed record PaymentResponse(
     {
         return new PaymentResponse(
             result.PaymentId,
+            result.SenderWalletId,
+            result.ReceiverWalletId,
+            result.SenderTenantId,
+            result.ReceiverTenantId,
             result.IdempotencyKey,
             result.Amount,
             result.Currency,

@@ -15,11 +15,23 @@ public sealed class WalletConfiguration : IEntityTypeConfiguration<Wallet>
         builder.Property(wallet => wallet.Id)
             .ValueGeneratedNever();
 
+        builder.Property(wallet => wallet.OwnerId)
+            .IsRequired();
+
         builder.Property(wallet => wallet.Currency)
             .HasMaxLength(3)
             .IsRequired();
 
-        builder.HasIndex(wallet => new { wallet.TenantId, wallet.Currency })
+        builder.Property(wallet => wallet.CreatedAt)
+            .IsRequired();
+
+        builder.HasIndex(wallet => new { wallet.OwnerId, wallet.Currency })
             .IsUnique();
+
+        builder.HasIndex(wallet => wallet.OwnerId);
+
+        builder.HasMany(wallet => wallet.LedgerEntries)
+            .WithOne(entry => entry.Wallet)
+            .HasForeignKey(entry => entry.WalletId);
     }
 }

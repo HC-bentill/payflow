@@ -5,6 +5,10 @@ namespace PayFlow.Application.Payments.Queries;
 
 public sealed record GetPaymentResult(
     Guid PaymentId,
+    Guid SenderWalletId,
+    Guid ReceiverWalletId,
+    Guid SenderTenantId,
+    Guid ReceiverTenantId,
     string IdempotencyKey,
     decimal Amount,
     string Currency,

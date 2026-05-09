@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using PayFlow.Application.Common;
+using PayFlow.Application.Common.Exceptions;
 using PayFlow.Application.Common.Observability;
 using PayFlow.Domain.Entities;
 using PayFlow.Domain.Events;
@@ -13,6 +14,8 @@ namespace PayFlow.Application.Payments.Commands;
 public sealed partial class CreatePaymentHandler(
     IPaymentRepository paymentRepository,
     ILedgerRepository ledgerRepository,
+    IWalletRepository walletRepository,
+    ITenantRepository tenantRepository,
     IIdempotencyService idempotencyService,
     IEventPublisher eventPublisher,
     IUnitOfWork unitOfWork,
@@ -27,10 +30,11 @@ public sealed partial class CreatePaymentHandler(
     {
         var tenant = tenantContext.CurrentTenant;
         var tier = tenant.Tier.ToString();
-        var tenantId = request.TenantId.ToString();
+        var tenantIdString = request.TenantId.ToString();
         using var scope = logger.BeginScope(new Dictionary<string, object?>
         {
             ["TenantId"] = request.TenantId,
+            ["ReceiverTenantId"] = request.ReceiverTenantId,
             ["IdempotencyKey"] = request.IdempotencyKey
         });
         var recordedPaymentOutcome = false;
@@ -42,21 +46,18 @@ public sealed partial class CreatePaymentHandler(
                 throw new InvalidCurrencyException();
             }
 
-            logger.LogInformation("Checking idempotency cache for payment request");
             var cached = await idempotencyService.GetCachedResponseAsync<CreatePaymentResult>(
-                tenantId,
+                tenantIdString,
                 request.IdempotencyKey,
                 cancellationToken);
 
             if (cached is not null)
             {
                 metrics.RecordIdempotencyReplay(tier);
-                logger.LogInformation("Returning cached idempotent payment response for payment {PaymentId}", cached.PaymentId);
                 return cached with { IsReplay = true };
             }
 
-            logger.LogInformation("Acquiring idempotency lock for payment request");
-            if (!await idempotencyService.AcquireLockAsync(tenantId, request.IdempotencyKey, cancellationToken))
+            if (!await idempotencyService.AcquireLockAsync(tenantIdString, request.IdempotencyKey, cancellationToken))
             {
                 throw new PaymentAlreadyProcessingException();
             }
@@ -70,13 +71,9 @@ public sealed partial class CreatePaymentHandler(
 
                 if (existing is not null)
                 {
-                    logger.LogInformation(
-                        "Returning existing idempotent payment response for payment {PaymentId}",
-                        existing.Id);
-
                     var existingResult = ToResult(existing, isReplay: false);
                     await idempotencyService.CacheResponseAsync(
-                        tenantId,
+                        tenantIdString,
                         request.IdempotencyKey,
                         existingResult,
                         cancellationToken);
@@ -85,60 +82,80 @@ public sealed partial class CreatePaymentHandler(
                     return existingResult with { IsReplay = true };
                 }
 
+                if (request.TenantId == request.ReceiverTenantId)
+                {
+                    throw new InvalidOperationException("Sender and receiver cannot be the same tenant");
+                }
+
+                var receiverTenant = await tenantRepository.GetByIdAsync(request.ReceiverTenantId, cancellationToken);
+                if (receiverTenant is null)
+                {
+                    throw new NotFoundException("Tenant", request.ReceiverTenantId);
+                }
+
                 var paymentId = Guid.NewGuid();
-                using var paymentScope = logger.BeginScope(new Dictionary<string, object?>
-                {
-                    ["PaymentId"] = paymentId
-                });
-
                 var now = DateTime.UtcNow;
-                var payment = new Payment(
-                    paymentId,
-                    request.TenantId,
-                    request.IdempotencyKey,
-                    request.Amount,
-                    request.Currency,
-                    PaymentStatus.Processing,
-                    request.Description,
-                    request.Metadata,
-                    now,
-                    now);
+                Payment payment;
 
-                var ledgerEntries = new[]
-                {
-                    new LedgerEntry(
-                        Guid.NewGuid(),
-                        paymentId,
-                        request.TenantId,
-                        LedgerEntryType.Debit,
-                        request.Amount,
-                        request.Currency,
-                        now),
-                    new LedgerEntry(
-                        Guid.NewGuid(),
-                        paymentId,
-                        request.TenantId,
-                        LedgerEntryType.Credit,
-                        request.Amount,
-                        request.Currency,
-                        now)
-                };
-
-                logger.LogInformation("Beginning payment and ledger transaction");
                 await using (var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken))
                 {
                     try
                     {
+                        var senderWallet = await walletRepository.FindOrCreateAsync(
+                            request.TenantId,
+                            request.Currency,
+                            cancellationToken);
+                        var receiverWallet = await walletRepository.FindOrCreateAsync(
+                            request.ReceiverTenantId,
+                            request.Currency,
+                            cancellationToken);
+
+                        payment = new Payment(
+                            paymentId,
+                            request.TenantId,
+                            senderWallet.Id,
+                            receiverWallet.Id,
+                            request.TenantId,
+                            request.ReceiverTenantId,
+                            request.IdempotencyKey,
+                            request.Amount,
+                            request.Currency,
+                            PaymentStatus.Processing,
+                            request.Description,
+                            request.Metadata,
+                            now,
+                            now);
+
+                        var ledgerEntries = new[]
+                        {
+                            new LedgerEntry(
+                                Guid.NewGuid(),
+                                paymentId,
+                                senderWallet.Id,
+                                request.TenantId,
+                                LedgerEntryType.Debit,
+                                request.Amount,
+                                request.Currency,
+                                now),
+                            new LedgerEntry(
+                                Guid.NewGuid(),
+                                paymentId,
+                                receiverWallet.Id,
+                                request.ReceiverTenantId,
+                                LedgerEntryType.Credit,
+                                request.Amount,
+                                request.Currency,
+                                now)
+                        };
+
                         await paymentRepository.AddAsync(payment, cancellationToken);
                         await ledgerRepository.AddRangeAsync(ledgerEntries, cancellationToken);
                         await unitOfWork.SaveChangesAsync(cancellationToken);
                         await transaction.CommitAsync(cancellationToken);
-                        logger.LogInformation("Committed payment and ledger transaction");
                     }
                     catch
                     {
                         await transaction.RollbackAsync(cancellationToken);
-                        logger.LogWarning("Rolled back payment and ledger transaction");
                         throw;
                     }
                 }
@@ -148,42 +165,32 @@ public sealed partial class CreatePaymentHandler(
                 payment.MarkSucceeded(DateTime.UtcNow);
                 await paymentRepository.UpdateAsync(payment, cancellationToken);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
-                metrics.RecordPayment("succeeded", payment.Currency, tier, payment.Amount);
+                metrics.RecordPayment("succeeded", payment.Currency, tier, payment.Amount, "debit");
+                metrics.RecordPayment("succeeded", payment.Currency, tier, payment.Amount, "credit");
                 recordedPaymentOutcome = true;
-                logger.LogInformation(
-                    "Payment {PaymentId} succeeded for tenant {TenantId}",
-                    payment.Id,
-                    payment.TenantId);
-                logger.LogInformation("Payment status updated to {PaymentStatus}", payment.Status);
+                logger.LogInformation("Payment {PaymentId} succeeded for tenant {TenantId}", payment.Id, payment.TenantId);
 
                 var result = ToResult(payment, isReplay: false);
                 await idempotencyService.CacheResponseAsync(
-                    tenantId,
+                    tenantIdString,
                     request.IdempotencyKey,
                     result,
                     cancellationToken);
-                logger.LogInformation("Cached idempotent payment response");
 
                 return result;
             }
             finally
             {
-                await idempotencyService.ReleaseLockAsync(tenantId, request.IdempotencyKey, cancellationToken);
-                logger.LogInformation("Released idempotency lock");
+                await idempotencyService.ReleaseLockAsync(tenantIdString, request.IdempotencyKey, cancellationToken);
             }
         }
-        catch (Exception exception)
+        catch
         {
             if (!recordedPaymentOutcome)
             {
                 metrics.RecordPayment("failed", request.Currency, tier, request.Amount);
             }
 
-            logger.LogWarning(
-                exception,
-                "Payment request failed for tenant {TenantId} with currency {Currency}",
-                request.TenantId,
-                request.Currency);
             throw;
         }
     }
@@ -195,6 +202,10 @@ public sealed partial class CreatePaymentHandler(
             var @event = new PaymentProcessedEvent(
                 payment.Id,
                 payment.TenantId,
+                payment.SenderWalletId,
+                payment.ReceiverWalletId,
+                payment.SenderTenantId,
+                payment.ReceiverTenantId,
                 payment.Amount,
                 payment.Currency,
                 PaymentStatus.Succeeded,
@@ -202,13 +213,10 @@ public sealed partial class CreatePaymentHandler(
                 DateTime.UtcNow);
 
             await eventPublisher.PublishAsync(PaymentEventsTopic, @event, cancellationToken);
-            logger.LogInformation("Published payment processed event");
         }
         catch (Exception exception)
         {
-            logger.LogWarning(
-                exception,
-                "Failed to publish payment processed event; payment will remain successful");
+            logger.LogWarning(exception, "Failed to publish payment processed event; payment will remain successful");
         }
     }
 
@@ -216,6 +224,10 @@ public sealed partial class CreatePaymentHandler(
     {
         return new CreatePaymentResult(
             payment.Id,
+            payment.SenderWalletId,
+            payment.ReceiverWalletId,
+            payment.SenderTenantId,
+            payment.ReceiverTenantId,
             payment.IdempotencyKey,
             payment.Amount,
             payment.Currency,

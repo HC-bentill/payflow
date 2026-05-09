@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ILedgerRepository, LedgerRepository>();
+        services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IWebhookEndpointRepository, WebhookEndpointRepository>();
         services.AddScoped<IWebhookDeliveryLogRepository, WebhookDeliveryLogRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();

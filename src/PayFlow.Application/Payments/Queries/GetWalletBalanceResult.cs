@@ -1,7 +1,7 @@
 namespace PayFlow.Application.Payments.Queries;
 
 public sealed record GetWalletBalanceResult(
-    Guid TenantId,
+    Guid WalletId,
     string Currency,
     decimal Balance,
     DateTime ComputedAt);

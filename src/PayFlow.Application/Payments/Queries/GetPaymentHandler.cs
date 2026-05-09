@@ -26,6 +26,10 @@ public sealed class GetPaymentHandler(
 
         return new GetPaymentResult(
             payment.Id,
+            payment.SenderWalletId,
+            payment.ReceiverWalletId,
+            payment.SenderTenantId,
+            payment.ReceiverTenantId,
             payment.IdempotencyKey,
             payment.Amount,
             payment.Currency,
@@ -38,6 +42,7 @@ public sealed class GetPaymentHandler(
                 .OrderBy(entry => entry.CreatedAt)
                 .Select(entry => new LedgerEntryDto(
                     entry.Id,
+                    entry.WalletId,
                     entry.Type,
                     entry.Amount,
                     entry.Currency,

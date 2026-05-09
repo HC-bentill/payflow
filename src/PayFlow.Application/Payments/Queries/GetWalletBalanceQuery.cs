@@ -2,4 +2,4 @@ using MediatR;
 
 namespace PayFlow.Application.Payments.Queries;
 
-public sealed record GetWalletBalanceQuery(Guid TenantId, string Currency) : IRequest<GetWalletBalanceResult>;
+public sealed record GetWalletBalanceQuery(Guid TenantId, Guid WalletId) : IRequest<GetWalletBalanceResult>;

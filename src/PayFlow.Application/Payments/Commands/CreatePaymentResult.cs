@@ -4,6 +4,10 @@ namespace PayFlow.Application.Payments.Commands;
 
 public sealed record CreatePaymentResult(
     Guid PaymentId,
+    Guid SenderWalletId,
+    Guid ReceiverWalletId,
+    Guid SenderTenantId,
+    Guid ReceiverTenantId,
     string IdempotencyKey,
     decimal Amount,
     string Currency,

@@ -3,6 +3,10 @@ namespace PayFlow.Domain.Entities;
 public sealed class Payment(
     Guid id,
     Guid tenantId,
+    Guid senderWalletId,
+    Guid receiverWalletId,
+    Guid senderTenantId,
+    Guid receiverTenantId,
     string idempotencyKey,
     decimal amount,
     string currency,
@@ -14,6 +18,10 @@ public sealed class Payment(
 {
     private Payment()
         : this(
+            Guid.Empty,
+            Guid.Empty,
+            Guid.Empty,
+            Guid.Empty,
             Guid.Empty,
             Guid.Empty,
             string.Empty,
@@ -30,6 +38,14 @@ public sealed class Payment(
     public Guid Id { get; private set; } = id;
 
     public Guid TenantId { get; private set; } = tenantId;
+
+    public Guid SenderWalletId { get; private set; } = senderWalletId;
+
+    public Guid ReceiverWalletId { get; private set; } = receiverWalletId;
+
+    public Guid SenderTenantId { get; private set; } = senderTenantId;
+
+    public Guid ReceiverTenantId { get; private set; } = receiverTenantId;
 
     public string IdempotencyKey { get; private set; } = idempotencyKey;
 

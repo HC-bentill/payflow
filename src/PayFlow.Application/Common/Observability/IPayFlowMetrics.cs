@@ -2,7 +2,7 @@ namespace PayFlow.Application.Common.Observability;
 
 public interface IPayFlowMetrics
 {
-    void RecordPayment(string status, string currency, string tier, decimal amount);
+    void RecordPayment(string status, string currency, string tier, decimal amount, string direction = "none");
 
     void RecordWebhookDelivery(string status);
 
