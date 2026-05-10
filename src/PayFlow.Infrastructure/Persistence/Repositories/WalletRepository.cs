@@ -6,6 +6,23 @@ namespace PayFlow.Infrastructure.Persistence.Repositories;
 
 public sealed class WalletRepository(PayFlowDbContext dbContext) : IWalletRepository
 {
+    public Task<Wallet?> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        return dbContext.Wallets.FirstOrDefaultAsync(wallet => wallet.Id == id, ct);
+    }
+
+    public Task<Wallet?> GetByIdWithLockAsync(Guid id, CancellationToken ct)
+    {
+        if (!dbContext.Database.IsRelational())
+        {
+            return GetByIdAsync(id, ct);
+        }
+
+        return dbContext.Wallets
+            .FromSqlRaw("SELECT * FROM wallets WHERE \"Id\" = {0} FOR UPDATE", id)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public Task<Wallet?> GetByOwnerAndCurrencyAsync(Guid ownerId, string currency, CancellationToken ct)
     {
         return dbContext.Wallets.FirstOrDefaultAsync(

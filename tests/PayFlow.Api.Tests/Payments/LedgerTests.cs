@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using PayFlow.Api.Tests.Auth;
+using PayFlow.Api.Tests.Wallets;
 
 namespace PayFlow.Api.Tests.Payments;
 
@@ -13,6 +14,7 @@ public sealed class LedgerTests(PayFlowApiFactory factory) : IClassFixture<PayFl
         await factory.ResetDatabaseAsync();
         var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        await WalletTestClient.FundWalletAsync(factory, sender, amount: 500);
 
         var createResponse = await sender.Client.CreatePaymentAsync(receiver.TenantId, $"idem-{Guid.NewGuid():N}", amount: 100);
         var created = await createResponse.Content.ReadFromJsonAsync<PaymentResponse>(AuthTestClient.JsonOptions, CancellationToken.None);
@@ -33,11 +35,12 @@ public sealed class LedgerTests(PayFlowApiFactory factory) : IClassFixture<PayFl
     }
 
     [Fact]
-    public async Task WalletBalances_AfterSimpleUsdPayment_AreNegativeForSenderAndPositiveForReceiver()
+    public async Task WalletBalances_AfterTopUpAndSimpleUsdPayment_ArePositiveForSenderAndReceiver()
     {
         await factory.ResetDatabaseAsync();
         var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        await WalletTestClient.FundWalletAsync(factory, sender, amount: 500);
 
         await sender.Client.CreatePaymentAsync(receiver.TenantId, $"idem-{Guid.NewGuid():N}", amount: 100);
 
@@ -47,7 +50,7 @@ public sealed class LedgerTests(PayFlowApiFactory factory) : IClassFixture<PayFl
         senderWallets.Should().NotBeNullOrEmpty();
         receiverWallets.Should().NotBeNullOrEmpty();
 
-        senderWallets![0].Balance.Should().BeNegative();
+        senderWallets![0].Balance.Should().Be(400);
         receiverWallets![0].Balance.Should().BePositive();
     }
 
@@ -57,6 +60,7 @@ public sealed class LedgerTests(PayFlowApiFactory factory) : IClassFixture<PayFl
         await factory.ResetDatabaseAsync();
         var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        await WalletTestClient.FundWalletAsync(factory, sender, amount: 500);
 
         await sender.Client.CreatePaymentAsync(receiver.TenantId, $"idem-{Guid.NewGuid():N}", amount: 100);
 

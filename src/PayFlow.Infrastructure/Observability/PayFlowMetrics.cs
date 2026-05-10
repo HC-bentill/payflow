@@ -8,8 +8,10 @@ public sealed class PayFlowMetrics : IPayFlowMetrics
 {
     private static readonly Meter Meter = new("PayFlow", "1.0");
 
-    private readonly Counter<long> paymentsCounter = Meter.CreateCounter<long>("payflow.payments.total");
-    private readonly Histogram<double> paymentAmount = Meter.CreateHistogram<double>(
+    private static readonly Counter<long> PaymentsCounter = Meter.CreateCounter<long>("payflow.payments.total");
+    private static readonly Counter<long> TopUpsCounter = Meter.CreateCounter<long>("payflow.topups.total");
+    private static readonly Counter<long> InsufficientFundsCounter = Meter.CreateCounter<long>("payflow.insufficient.funds.total");
+    private static readonly Histogram<double> PaymentAmount = Meter.CreateHistogram<double>(
         "payflow.payment.amount",
         unit: "USD",
         description: "Payment amount distribution",
@@ -36,6 +38,14 @@ public sealed class PayFlowMetrics : IPayFlowMetrics
             observeValues: ObserveKafkaLagMeasurements);
     }
 
+    public static void EnsureInitialized()
+    {
+        GC.KeepAlive(PaymentsCounter);
+        GC.KeepAlive(TopUpsCounter);
+        GC.KeepAlive(InsufficientFundsCounter);
+        GC.KeepAlive(PaymentAmount);
+    }
+
     public void RecordPayment(string status, string currency, string tier, decimal amount, string direction = "none")
     {
         var tags = new TagList
@@ -46,8 +56,30 @@ public sealed class PayFlowMetrics : IPayFlowMetrics
             { "direction", direction }
         };
 
-        paymentsCounter.Add(1, tags);
-        paymentAmount.Record(decimal.ToDouble(amount), tags);
+        PaymentsCounter.Add(1, tags);
+        PaymentAmount.Record(decimal.ToDouble(amount), tags);
+    }
+
+    public void RecordTopUp(string currency, string tier)
+    {
+        var tags = new TagList
+        {
+            { "currency", currency },
+            { "tier", tier }
+        };
+
+        TopUpsCounter.Add(1, tags);
+    }
+
+    public void RecordInsufficientFunds(string currency, string tier)
+    {
+        var tags = new TagList
+        {
+            { "currency", currency },
+            { "tier", tier }
+        };
+
+        InsufficientFundsCounter.Add(1, tags);
     }
 
     public void RecordWebhookDelivery(string status)

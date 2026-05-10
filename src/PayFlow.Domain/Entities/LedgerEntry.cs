@@ -1,3 +1,5 @@
+using PayFlow.Domain.Enums;
+
 namespace PayFlow.Domain.Entities;
 
 public sealed class LedgerEntry(
@@ -8,10 +10,20 @@ public sealed class LedgerEntry(
     LedgerEntryType type,
     decimal amount,
     string currency,
-    DateTime createdAt)
+    DateTime createdAt,
+    LedgerEntrySource source = LedgerEntrySource.Payment)
 {
     private LedgerEntry()
-        : this(Guid.Empty, Guid.Empty, Guid.Empty, Guid.Empty, LedgerEntryType.Debit, 0, string.Empty, DateTime.MinValue)
+        : this(
+            Guid.Empty,
+            Guid.Empty,
+            Guid.Empty,
+            Guid.Empty,
+            LedgerEntryType.Debit,
+            0,
+            string.Empty,
+            DateTime.MinValue,
+            LedgerEntrySource.Payment)
     {
     }
 
@@ -30,6 +42,8 @@ public sealed class LedgerEntry(
     public decimal Amount { get; private set; } = amount;
 
     public string Currency { get; private set; } = currency;
+
+    public LedgerEntrySource Source { get; private set; } = source;
 
     public DateTime CreatedAt { get; private set; } = createdAt;
 }

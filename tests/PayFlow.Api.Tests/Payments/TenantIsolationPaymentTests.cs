@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using PayFlow.Api.Tests.Auth;
+using PayFlow.Api.Tests.Wallets;
 
 namespace PayFlow.Api.Tests.Payments;
 
@@ -13,6 +14,7 @@ public sealed class TenantIsolationPaymentTests(PayFlowApiFactory factory) : ICl
         await factory.ResetDatabaseAsync();
         var tenantA = await PaymentTestClient.CreateAuthenticatedClientAsync(factory, $"tenant-a-{Guid.NewGuid():N}");
         var tenantB = await PaymentTestClient.CreateAuthenticatedClientAsync(factory, $"tenant-b-{Guid.NewGuid():N}");
+        await WalletTestClient.FundWalletAsync(factory, tenantA, amount: 500);
         var createResponse = await tenantA.Client.CreatePaymentAsync(tenantB.TenantId, $"idem-{Guid.NewGuid():N}");
         var created = await createResponse.Content.ReadFromJsonAsync<PaymentResponse>(AuthTestClient.JsonOptions, CancellationToken.None);
 
@@ -33,6 +35,7 @@ public sealed class TenantIsolationPaymentTests(PayFlowApiFactory factory) : ICl
         await factory.ResetDatabaseAsync();
         var tenantA = await PaymentTestClient.CreateAuthenticatedClientAsync(factory, $"tenant-a-{Guid.NewGuid():N}");
         var tenantB = await PaymentTestClient.CreateAuthenticatedClientAsync(factory, $"tenant-b-{Guid.NewGuid():N}");
+        await WalletTestClient.FundWalletAsync(factory, tenantA, amount: 50);
 
         await tenantA.Client.CreatePaymentAsync(tenantB.TenantId, $"idem-{Guid.NewGuid():N}", amount: 50);
 

@@ -4,6 +4,10 @@ public interface IPayFlowMetrics
 {
     void RecordPayment(string status, string currency, string tier, decimal amount, string direction = "none");
 
+    void RecordTopUp(string currency, string tier);
+
+    void RecordInsufficientFunds(string currency, string tier);
+
     void RecordWebhookDelivery(string status);
 
     void RecordWebhookRetry(int attemptNumber);

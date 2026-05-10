@@ -28,6 +28,12 @@ public sealed class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEn
             .HasMaxLength(3)
             .IsRequired();
 
+        builder.Property(entry => entry.Source)
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .HasDefaultValue(PayFlow.Domain.Enums.LedgerEntrySource.Payment)
+            .IsRequired();
+
         builder.Property(entry => entry.CreatedAt)
             .IsRequired();
 

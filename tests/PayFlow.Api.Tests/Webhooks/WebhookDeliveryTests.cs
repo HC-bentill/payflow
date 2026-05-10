@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using FluentAssertions;
 using PayFlow.Api.Tests.Auth;
 using PayFlow.Api.Tests.Payments;
+using PayFlow.Api.Tests.Wallets;
 using PayFlow.Domain.Enums;
 using PayFlow.Domain.Messages;
 using PayFlow.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ public sealed class WebhookDeliveryTests(PayFlowApiFactory factory) : IClassFixt
         await factory.ResetDatabaseAsync();
         var authenticated = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        await WalletTestClient.FundWalletAsync(factory, authenticated, amount: 500);
         await authenticated.Client.PostAsJsonAsync(
             "/v1/webhooks/endpoints",
             new RegisterWebhookEndpointRequest("https://example.com/webhooks/payflow", "secret-min-16-chars"),

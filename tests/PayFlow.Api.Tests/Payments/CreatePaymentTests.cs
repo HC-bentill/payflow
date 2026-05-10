@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using PayFlow.Api.Tests.Auth;
+using PayFlow.Api.Tests.Wallets;
 
 namespace PayFlow.Api.Tests.Payments;
 
@@ -29,6 +30,7 @@ public sealed class CreatePaymentTests(PayFlowApiFactory factory) : IClassFixtur
         await factory.ResetDatabaseAsync();
         var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        await WalletTestClient.FundWalletAsync(factory, sender, amount: 500);
 
         var response = await sender.Client.CreatePaymentAsync(receiver.TenantId, $"idem-{Guid.NewGuid():N}");
 
@@ -71,6 +73,7 @@ public sealed class CreatePaymentTests(PayFlowApiFactory factory) : IClassFixtur
         var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var idempotencyKey = $"idem-{Guid.NewGuid():N}";
+        await WalletTestClient.FundWalletAsync(factory, sender, amount: 500);
 
         var first = await sender.Client.CreatePaymentAsync(receiver.TenantId, idempotencyKey);
         var second = await sender.Client.CreatePaymentAsync(receiver.TenantId, idempotencyKey);
@@ -92,6 +95,7 @@ public sealed class CreatePaymentTests(PayFlowApiFactory factory) : IClassFixtur
         await factory.ResetDatabaseAsync();
         var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
+        await WalletTestClient.FundWalletAsync(factory, sender, amount: 500);
 
         var createResponse = await sender.Client.CreatePaymentAsync(receiver.TenantId, $"idem-{Guid.NewGuid():N}", amount: 100);
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -101,7 +105,7 @@ public sealed class CreatePaymentTests(PayFlowApiFactory factory) : IClassFixtur
 
         senderWalletsResponse.Should().NotBeNullOrEmpty();
         receiverWalletsResponse.Should().NotBeNullOrEmpty();
-        senderWalletsResponse![0].Balance.Should().Be(-100);
+        senderWalletsResponse![0].Balance.Should().Be(400);
         receiverWalletsResponse![0].Balance.Should().Be(100);
     }
 }

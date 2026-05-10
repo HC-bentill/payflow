@@ -62,6 +62,7 @@ services:
         kafka_pid=$$!
         cub kafka-ready -b localhost:9092 1 60
         kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic payment.events --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic wallet.events --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic webhook.delivery --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic webhook.dlq --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic notifications.dispatch --partitions 1 --replication-factor 1

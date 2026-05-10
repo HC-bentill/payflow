@@ -2,6 +2,7 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using PayFlow.Api.Tests.Wallets;
 using PayFlow.Infrastructure.Persistence;
 
 namespace PayFlow.Api.Tests.Payments;
@@ -15,6 +16,7 @@ public sealed class IdempotencyTests(PayFlowApiFactory factory) : IClassFixture<
         var sender = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var receiver = await PaymentTestClient.CreateAuthenticatedClientAsync(factory);
         var idempotencyKey = $"idem-{Guid.NewGuid():N}";
+        await WalletTestClient.FundWalletAsync(factory, sender, amount: 500);
 
         var responses = await Task.WhenAll(
             sender.Client.CreatePaymentAsync(receiver.TenantId, idempotencyKey),

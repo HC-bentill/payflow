@@ -56,7 +56,11 @@ public sealed class LoggingTests
         walletRepository.SetupSequence(repository => repository.FindOrCreateAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(senderWallet)
             .ReturnsAsync(receiverWallet);
+        walletRepository.Setup(repository => repository.GetByIdWithLockAsync(senderWallet.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(senderWallet);
 
+        ledgerRepository.Setup(repository => repository.GetWalletBalanceAsync(senderWallet.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(500);
         ledgerRepository.Setup(repository => repository.AddRangeAsync(It.IsAny<IEnumerable<LedgerEntry>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         eventPublisher.Setup(publisher => publisher.PublishAsync("payment.events", It.IsAny<PaymentProcessedEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 

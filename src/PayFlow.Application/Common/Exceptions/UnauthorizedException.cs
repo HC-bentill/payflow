@@ -6,4 +6,12 @@ public sealed class UnauthorizedException : ApplicationException
         : base("Unauthorized")
     {
     }
+
+    public UnauthorizedException(string message, int statusCode = 401)
+        : base(message)
+    {
+        StatusCode = statusCode;
+    }
+
+    public int StatusCode { get; } = 401;
 }

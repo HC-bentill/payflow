@@ -18,7 +18,7 @@ public sealed class GlobalExceptionFilter : IExceptionFilter
             },
             UnauthorizedException exception => new ObjectResult(new { error = exception.Message })
             {
-                StatusCode = StatusCodes.Status401Unauthorized
+                StatusCode = exception.StatusCode
             },
             NotFoundException exception => new ObjectResult(new { error = exception.Message })
             {
@@ -32,6 +32,23 @@ public sealed class GlobalExceptionFilter : IExceptionFilter
             {
                 StatusCode = StatusCodes.Status422UnprocessableEntity
             },
+            InsufficientFundsException exception => new ObjectResult(new
+            {
+                error = "insufficient_funds",
+                message = exception.Message,
+                requiredAmount = exception.RequiredAmount,
+                availableBalance = exception.AvailableBalance,
+                currency = exception.Currency,
+                walletId = exception.WalletId
+            })
+            {
+                StatusCode = StatusCodes.Status422UnprocessableEntity
+            },
+            InvalidOperationException exception when exception.Message.StartsWith("Top-up currency ", StringComparison.Ordinal) =>
+                new ObjectResult(new { error = exception.Message })
+                {
+                    StatusCode = StatusCodes.Status422UnprocessableEntity
+                },
             InvalidOperationException exception => new BadRequestObjectResult(new { error = exception.Message }),
             ValidationException exception => new BadRequestObjectResult(new
             {

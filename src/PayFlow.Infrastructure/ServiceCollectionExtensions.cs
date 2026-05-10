@@ -41,12 +41,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ILedgerRepository, LedgerRepository>();
         services.AddScoped<IWalletRepository, WalletRepository>();
+        services.AddScoped<ITopUpRepository, TopUpRepository>();
         services.AddScoped<IWebhookEndpointRepository, WebhookEndpointRepository>();
         services.AddScoped<IWebhookDeliveryLogRepository, WebhookDeliveryLogRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddScoped<IHealthProbeService, HealthProbeService>();
         services.AddScoped<ITenantContext, TenantContext>();
+        PayFlowMetrics.EnsureInitialized();
         services.AddSingleton<IPayFlowMetrics, PayFlowMetrics>();
         services.AddSingleton<IRateLimiter, RedisRateLimiter>();
         services.AddSingleton<IEventPublisher, KafkaEventPublisher>();

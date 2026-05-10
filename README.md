@@ -62,6 +62,11 @@ PayFlow is a production-grade, multi-tenant payment processing API scaffolded fo
            Multi-party payment model, SenderWalletId + ReceiverWalletId,
            separate ledger entries per wallet, real balance movement
 
+`Phase 7.6`  Wallet Top-Up + Insufficient Funds
+           External wallet funding via top-up credits, ledger entry source tagging,
+           pre-payment balance validation, 422 insufficient_funds responses,
+           wallet top-up Kafka events and Prometheus counters
+
 `Phase 8`   Homelab Setup
            Ubuntu VMs on VirtualBox, k3s cluster (1 control plane + 2 workers),
            Postgres + Redis + Grafana on dedicated VM, cluster networking,
@@ -178,11 +183,72 @@ GET `/v1/payments/wallets/{walletId}/balance`
 ### How balances work
 Wallet balance = SUM(Credits) - SUM(Debits) from ledger entries
 
-After a 100 USD payment from Tenant A to Tenant B:
-- Tenant A wallet balance: -100.00 USD (money sent)
+After a 500 USD top-up and a 100 USD payment from Tenant A to Tenant B:
+- Tenant A wallet balance: +400.00 USD (money sent)
 - Tenant B wallet balance: +100.00 USD (money received)
 
-Wallets are created automatically on first payment - no manual setup needed.
+Sender wallets must be funded before payments can be sent.
+
+## Wallet Top-Up
+
+Wallets must be funded before payments can be sent.
+Top-ups inject external funds into a wallet as a Credit ledger entry.
+
+### Top up a wallet
+POST `/v1/wallets/{walletId}/topup`
+
+Headers:
+
+```text
+Idempotency-Key: <merchant-generated-key>
+Authorization: Bearer <jwt>
+```
+
+Body:
+
+```json
+{
+  "amount": 500.00,
+  "currency": "USD"
+}
+```
+
+Response:
+
+```json
+{
+  "topUpId": "...",
+  "walletId": "...",
+  "amount": 500.00,
+  "currency": "USD",
+  "newBalance": 500.00
+}
+```
+
+### View top-up history
+GET `/v1/wallets/{walletId}/topups?page=1&pageSize=20`
+
+### Insufficient funds
+If sender balance < payment amount:
+
+HTTP 422
+
+```json
+{
+  "error": "insufficient_funds",
+  "requiredAmount": 100.00,
+  "availableBalance": 50.00,
+  "currency": "USD"
+}
+```
+
+### Full demo flow with top-up
+1. Register Tenant A + Tenant B
+2. Top up Tenant A wallet: POST `/v1/wallets/{walletId}/topup` `{ "amount": 500.00, "currency": "USD" }`
+3. Send payment: POST `/v1/payments` `{ "receiverTenantId": "...", "amount": 100.00, "currency": "USD" }`
+4. Check balances:
+   Tenant A: +400.00 USD
+   Tenant B: +100.00 USD
 
 ## Webhooks
 
@@ -280,6 +346,8 @@ Key metrics:
 ```text
 payflow_payments_total{status,currency,tier,direction} - payment outcomes
 payflow_payment_amount{currency,tier,direction}        - payment amount distribution
+payflow_topups_total{currency,tier}                    - wallet top-up count
+payflow_insufficient_funds_total{currency,tier}        - payment rejections due to low balance
 payflow_webhook_deliveries_total{status}         - webhook delivery outcomes
 payflow_rate_limit_hits_total{tier,endpoint}     - rate limit breaches
 payflow_kafka_consumer_lag{topic,consumer_group} - Kafka processing backlog
@@ -370,12 +438,17 @@ Never commit secrets — use GitHub Actions Secrets only.
 ## Definition of done
 - dotnet build -> zero errors, zero warnings
 - dotnet test -> ALL tests green including updated existing tests
-- POST /v1/payments with receiverTenantId -> 201
+- POST /v1/wallets/{walletId}/topup -> 201 with newBalance
+- POST /v1/payments with zero balance -> 422 insufficient_funds
+- POST /v1/payments after top-up -> 201
 - POST /v1/payments with same sender and receiver -> 400
 - POST /v1/payments with non-existent receiver -> 404
-- After 100 USD payment: sender wallet balance = -100.00, receiver = +100.00
+- Concurrent payments exceeding balance -> only one succeeds, no overdraft
+- After 500 USD top-up and 100 USD payment: sender wallet balance = +400.00, receiver = +100.00
 - GET /v1/payments/wallets -> returns wallets with real non-zero balances
 - Ledger entries have correct WalletId — verified in DB
-- Wallets auto-created on first payment — no manual wallet creation needed
+- Top-up credits use LedgerEntry.Source = TopUp
+- Payment entries use LedgerEntry.Source = Payment
 - PaymentProcessedEvent includes senderWalletId and receiverWalletId
+- WalletToppedUpEvent publishes to wallet.events
 - All Phase 3, 4, 5, 6 tests still pass with updated payment model

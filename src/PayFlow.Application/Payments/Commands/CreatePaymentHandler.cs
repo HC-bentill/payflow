@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -5,6 +6,7 @@ using PayFlow.Application.Common;
 using PayFlow.Application.Common.Exceptions;
 using PayFlow.Application.Common.Observability;
 using PayFlow.Domain.Entities;
+using PayFlow.Domain.Enums;
 using PayFlow.Domain.Events;
 using PayFlow.Domain.Exceptions;
 using PayFlow.Domain.Interfaces;
@@ -25,6 +27,7 @@ public sealed partial class CreatePaymentHandler(
     : IRequestHandler<CreatePaymentCommand, CreatePaymentResult>
 {
     private const string PaymentEventsTopic = "payment.events";
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> SenderWalletLocks = [];
 
     public async Task<CreatePaymentResult> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
@@ -93,71 +96,114 @@ public sealed partial class CreatePaymentHandler(
                     throw new NotFoundException("Tenant", request.ReceiverTenantId);
                 }
 
+                var senderWallet = await walletRepository.FindOrCreateAsync(
+                    request.TenantId,
+                    request.Currency,
+                    cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+
+                var senderBalance = await ledgerRepository.GetWalletBalanceAsync(senderWallet.Id, cancellationToken);
+                if (senderBalance < request.Amount)
+                {
+                    throw new InsufficientFundsException(
+                        senderWallet.Id,
+                        request.Amount,
+                        senderBalance,
+                        request.Currency);
+                }
+
                 var paymentId = Guid.NewGuid();
                 var now = DateTime.UtcNow;
                 Payment payment;
+                var senderWalletLock = SenderWalletLocks.GetOrAdd(senderWallet.Id, _ => new SemaphoreSlim(1, 1));
 
-                await using (var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken))
+                await senderWalletLock.WaitAsync(cancellationToken);
+                try
                 {
-                    try
+                    await using (var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken))
                     {
-                        var senderWallet = await walletRepository.FindOrCreateAsync(
-                            request.TenantId,
-                            request.Currency,
-                            cancellationToken);
-                        var receiverWallet = await walletRepository.FindOrCreateAsync(
-                            request.ReceiverTenantId,
-                            request.Currency,
-                            cancellationToken);
-
-                        payment = new Payment(
-                            paymentId,
-                            request.TenantId,
-                            senderWallet.Id,
-                            receiverWallet.Id,
-                            request.TenantId,
-                            request.ReceiverTenantId,
-                            request.IdempotencyKey,
-                            request.Amount,
-                            request.Currency,
-                            PaymentStatus.Processing,
-                            request.Description,
-                            request.Metadata,
-                            now,
-                            now);
-
-                        var ledgerEntries = new[]
+                        try
                         {
-                            new LedgerEntry(
-                                Guid.NewGuid(),
-                                paymentId,
+                            var lockedSenderWallet = await walletRepository.GetByIdWithLockAsync(
                                 senderWallet.Id,
-                                request.TenantId,
-                                LedgerEntryType.Debit,
-                                request.Amount,
-                                request.Currency,
-                                now),
-                            new LedgerEntry(
-                                Guid.NewGuid(),
-                                paymentId,
-                                receiverWallet.Id,
-                                request.ReceiverTenantId,
-                                LedgerEntryType.Credit,
-                                request.Amount,
-                                request.Currency,
-                                now)
-                        };
+                                cancellationToken);
+                            if (lockedSenderWallet is null)
+                            {
+                                throw new NotFoundException("Wallet", senderWallet.Id);
+                            }
 
-                        await paymentRepository.AddAsync(payment, cancellationToken);
-                        await ledgerRepository.AddRangeAsync(ledgerEntries, cancellationToken);
-                        await unitOfWork.SaveChangesAsync(cancellationToken);
-                        await transaction.CommitAsync(cancellationToken);
+                            var lockedSenderBalance = await ledgerRepository.GetWalletBalanceAsync(
+                                lockedSenderWallet.Id,
+                                cancellationToken);
+                            if (lockedSenderBalance < request.Amount)
+                            {
+                                throw new InsufficientFundsException(
+                                    lockedSenderWallet.Id,
+                                    request.Amount,
+                                    lockedSenderBalance,
+                                    request.Currency);
+                            }
+
+                            var receiverWallet = await walletRepository.FindOrCreateAsync(
+                                request.ReceiverTenantId,
+                                request.Currency,
+                                cancellationToken);
+
+                            payment = new Payment(
+                                paymentId,
+                                request.TenantId,
+                                lockedSenderWallet.Id,
+                                receiverWallet.Id,
+                                request.TenantId,
+                                request.ReceiverTenantId,
+                                request.IdempotencyKey,
+                                request.Amount,
+                                request.Currency,
+                                PaymentStatus.Processing,
+                                request.Description,
+                                request.Metadata,
+                                now,
+                                now);
+
+                            var ledgerEntries = new[]
+                            {
+                                new LedgerEntry(
+                                    Guid.NewGuid(),
+                                    paymentId,
+                                    lockedSenderWallet.Id,
+                                    request.TenantId,
+                                    LedgerEntryType.Debit,
+                                    request.Amount,
+                                    request.Currency,
+                                    now,
+                                    LedgerEntrySource.Payment),
+                                new LedgerEntry(
+                                    Guid.NewGuid(),
+                                    paymentId,
+                                    receiverWallet.Id,
+                                    request.ReceiverTenantId,
+                                    LedgerEntryType.Credit,
+                                    request.Amount,
+                                    request.Currency,
+                                    now,
+                                    LedgerEntrySource.Payment)
+                            };
+
+                            await paymentRepository.AddAsync(payment, cancellationToken);
+                            await ledgerRepository.AddRangeAsync(ledgerEntries, cancellationToken);
+                            await unitOfWork.SaveChangesAsync(cancellationToken);
+                            await transaction.CommitAsync(cancellationToken);
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync(cancellationToken);
+                            throw;
+                        }
                     }
-                    catch
-                    {
-                        await transaction.RollbackAsync(cancellationToken);
-                        throw;
-                    }
+                }
+                finally
+                {
+                    senderWalletLock.Release();
                 }
 
                 await PublishPaymentProcessedAsync(payment, cancellationToken);
@@ -183,6 +229,16 @@ public sealed partial class CreatePaymentHandler(
             {
                 await idempotencyService.ReleaseLockAsync(tenantIdString, request.IdempotencyKey, cancellationToken);
             }
+        }
+        catch (InsufficientFundsException)
+        {
+            metrics.RecordInsufficientFunds(request.Currency, tier);
+            if (!recordedPaymentOutcome)
+            {
+                metrics.RecordPayment("failed", request.Currency, tier, request.Amount);
+            }
+
+            throw;
         }
         catch
         {

@@ -13,6 +13,8 @@ public sealed class PayFlowDbContext(DbContextOptions<PayFlowDbContext> options)
 
     public DbSet<Wallet> Wallets => Set<Wallet>();
 
+    public DbSet<TopUp> TopUps => Set<TopUp>();
+
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
 
     public DbSet<WebhookDeliveryLog> WebhookDeliveryLogs => Set<WebhookDeliveryLog>();
